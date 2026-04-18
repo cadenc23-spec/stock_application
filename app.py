@@ -10,6 +10,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import date, timedelta
 import plotly.express as px
+from scipy import stats
 
 
 # -- Page configuration ----------------------------------
@@ -55,6 +56,11 @@ corr_pair_input = st.sidebar.text_input(
     value="AAPL,MSFT"
 )
 corr_pair = [t.strip().upper() for t in corr_pair_input.split(",") if t.strip()]
+
+qq_choice = st.sidebar.text_input(
+    "Q-Q Plot Asset",
+    value="PORTFOLIO"
+).upper().strip()
 
 # -- Data download ----------------------------------------
 @st.cache_data(show_spinner="Fetching data...", ttl=3600)
@@ -245,12 +251,6 @@ if tickers:
 
     fig_corr.update_layout(height=500)
     st.plotly_chart(fig_corr, width="stretch")
-
-    with st.expander("View Closing Prices"):
-        st.dataframe(close_prices.tail(60), width="stretch")
-
-    with st.expander("View Normalized Prices"):
-        st.dataframe(normalized_prices.tail(60), width="stretch")
     # -- Rolling correlation ------------------------------
     st.subheader("Rolling Correlation")
 
@@ -287,6 +287,69 @@ if tickers:
         )
 
         st.plotly_chart(fig_roll_corr, width="stretch")
+    
+        # -- Q-Q plot -----------------------------------------
+    st.subheader("Q-Q Plot")
+
+    asset_returns = returns.drop(columns=["S&P 500"], errors="ignore")
+
+    if len(asset_columns) < 1:
+        st.warning("No valid assets available for Q-Q plot.")
+    else:
+        if qq_choice == "PORTFOLIO":
+            qq_series = portfolio_returns.dropna()
+            qq_label = "Equal-Weight Portfolio"
+        elif qq_choice in asset_returns.columns:
+            qq_series = asset_returns[qq_choice].dropna()
+            qq_label = qq_choice
+        else:
+            st.warning("Enter PORTFOLIO or one of your selected stock tickers for the Q-Q plot.")
+            qq_series = None
+
+        if qq_series is not None and len(qq_series) > 0:
+            theoretical, sample = stats.probplot(qq_series, dist="norm", fit=False)
+
+            fig_qq = go.Figure()
+
+            fig_qq.add_trace(
+                go.Scatter(
+                    x=theoretical,
+                    y=sample,
+                    mode="markers",
+                    name=qq_label
+                )
+            )
+
+            # Reference line
+            slope, intercept, r = stats.probplot(qq_series, dist="norm")[1]
+            x_line = [min(theoretical), max(theoretical)]
+            y_line = [slope * x + intercept for x in x_line]
+
+            fig_qq.add_trace(
+                go.Scatter(
+                    x=x_line,
+                    y=y_line,
+                    mode="lines",
+                    name="Reference Line"
+                )
+            )
+
+            fig_qq.update_layout(
+                xaxis_title="Theoretical Quantiles",
+                yaxis_title="Sample Quantiles",
+                template="plotly_white",
+                height=450,
+                title=f"Q-Q Plot: {qq_label}"
+            )
+
+            st.plotly_chart(fig_qq, width="stretch")
+    
+    with st.expander("View Closing Prices"):
+        st.dataframe(close_prices.tail(60), width="stretch")
+
+    with st.expander("View Normalized Prices"):
+        st.dataframe(normalized_prices.tail(60), width="stretch")
+
 
 else:
     st.info("Enter stock tickers in the sidebar to get started.")
