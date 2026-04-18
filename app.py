@@ -155,7 +155,24 @@ if tickers:
     st.plotly_chart(fig_norm, width="stretch")
     # -- Compute returns -------------------------------------
     returns = close_prices.pct_change().dropna()
+    # Assets only (exclude benchmark from portfolio construction)
+    asset_columns = [col for col in close_prices.columns if col != "S&P 500"]
+    asset_returns = returns.drop(columns=["S&P 500"], errors="ignore")
 
+    # Equal-weight portfolio objects used in multiple sections
+    portfolio_returns = None
+    portfolio_cum = None
+    portfolio_weights = None
+
+    if len(asset_columns) >= 1:
+        portfolio_weights = pd.Series(
+            1 / len(asset_columns),
+            index=asset_columns,
+            name="Weight"
+        )
+        portfolio_returns = asset_returns[asset_columns].mean(axis=1)
+        portfolio_cum = (1 + portfolio_returns).cumprod()
+    
     # -- Summary statistics ----------------------------------
     st.subheader("Summary Statistics")
 
@@ -187,18 +204,9 @@ if tickers:
     # -- Equal-weight portfolio ---------------------------
     st.subheader("Equal-Weight Portfolio Performance")
 
-    # Remove benchmark from portfolio
-    asset_columns = [col for col in close_prices.columns if col != "S&P 500"]
-
-    if len(asset_columns) < 1:
+    if portfolio_returns is None or portfolio_cum is None:
         st.warning("No valid assets for portfolio calculation.")
     else:
-        # Portfolio returns (equal weight)
-        portfolio_returns = returns[asset_columns].mean(axis=1)
-
-        # Cumulative return
-        portfolio_cum = (1 + portfolio_returns).cumprod()
-
         fig_port = go.Figure()
 
         fig_port.add_trace(
@@ -210,6 +218,28 @@ if tickers:
                 line=dict(color="black", width=3)
             )
         )
+
+        if "S&P 500" in returns.columns:
+            sp500_cum = (1 + returns["S&P 500"]).cumprod()
+
+            fig_port.add_trace(
+                go.Scatter(
+                    x=sp500_cum.index,
+                    y=sp500_cum,
+                    mode="lines",
+                    name="S&P 500",
+                    line=dict(dash="dash")
+                )
+            )
+
+        fig_port.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Growth of $1",
+            template="plotly_white",
+            height=500
+        )
+
+        st.plotly_chart(fig_port, width="stretch")
 
         # Add S&P 500 for comparison (if available)
         if "S&P 500" in returns.columns:
