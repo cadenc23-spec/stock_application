@@ -321,6 +321,57 @@ if tickers:
 
         st.plotly_chart(fig_port, width="stretch")
 
+    # -- Two-Asset Portfolio Explorer ---------------------
+    st.subheader("Two-Asset Portfolio Explorer")
+
+    if len(two_asset_pair) != 2:
+        st.warning("Enter exactly two tickers for the two-asset explorer, like AAPL,MSFT.")
+    elif two_asset_portfolio_returns is None or two_asset_portfolio_cum is None:
+        st.warning("Both two-asset explorer tickers must be in your selected stock list.")
+    else:
+        st.markdown(
+            f"Portfolio weights: **{pair1} = {w1:.0%}**, **{pair2} = {w2:.0%}**"
+        )
+
+        fig_two_asset = go.Figure()
+
+        fig_two_asset.add_trace(
+            go.Scatter(
+                x=two_asset_portfolio_cum.index,
+                y=two_asset_portfolio_cum,
+                mode="lines",
+                name="Two-Asset Portfolio",
+                line=dict(width=3)
+            )
+        )
+
+        fig_two_asset.add_trace(
+            go.Scatter(
+                x=(1 + asset_returns[pair1]).cumprod().index,
+                y=(1 + asset_returns[pair1]).cumprod(),
+                mode="lines",
+                name=pair1
+            )
+        )
+
+        fig_two_asset.add_trace(
+            go.Scatter(
+                x=(1 + asset_returns[pair2]).cumprod().index,
+                y=(1 + asset_returns[pair2]).cumprod(),
+                mode="lines",
+                name=pair2
+            )
+        )
+
+        fig_two_asset.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Growth of $1",
+            template="plotly_white",
+            height=500
+        )
+
+        st.plotly_chart(fig_two_asset, width="stretch")
+
         # -- Max Drawdown -------------------------------------
         running_max = portfolio_cum.cummax()
         drawdown = (portfolio_cum - running_max) / running_max
