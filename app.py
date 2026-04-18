@@ -372,6 +372,28 @@ if tickers:
         )
 
         st.plotly_chart(fig_two_asset, width="stretch")
+        st.subheader("Two-Asset Portfolio Volatility Curve")
+
+        fig_two_vol = go.Figure()
+
+        fig_two_vol.add_trace(
+            go.Scatter(
+                x=two_asset_volatility.index,
+                y=two_asset_volatility,
+                mode="lines",
+                name="Two-Asset Portfolio Volatility",
+                line=dict(width=2)
+            )
+        )
+
+        fig_two_vol.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Annualized Volatility",
+            template="plotly_white",
+            height=400
+        )
+
+        st.plotly_chart(fig_two_vol, width="stretch")
 
         # -- Max Drawdown -------------------------------------
         running_max = portfolio_cum.cummax()
