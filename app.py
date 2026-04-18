@@ -51,6 +51,10 @@ corr_window = st.sidebar.slider(
     step=5
 )
 
+risk_free_rate = st.sidebar.number_input(
+    "Risk-Free Rate (%)", min_value=0.0, max_value=10.0, value=4.5, step=0.1
+) / 100
+
 corr_pair_input = st.sidebar.text_input(
     "Rolling Correlation Pair",
     value="AAPL,MSFT"
@@ -183,13 +187,21 @@ if tickers:
 
     summary_stats["Annual Return"] = summary_stats["Mean Daily Return"] * 252
     summary_stats["Annual Volatility"] = summary_stats["Volatility (Daily)"] * (252 ** 0.5)
-
-    risk_free_rate = 0.045
-
     summary_stats["Sharpe Ratio"] = (
         (summary_stats["Annual Return"] - risk_free_rate)
         / summary_stats["Annual Volatility"]
     )
+
+    if portfolio_returns is not None:
+        portfolio_row = pd.DataFrame({
+            "Mean Daily Return": [portfolio_returns.mean()],
+            "Volatility (Daily)": [portfolio_returns.std()],
+            "Annual Return": [portfolio_returns.mean() * 252],
+            "Annual Volatility": [portfolio_returns.std() * (252 ** 0.5)],
+            "Sharpe Ratio": [((portfolio_returns.mean() * 252) - risk_free_rate) / (portfolio_returns.std() * (252 ** 0.5))]
+        }, index=["Equal-Weight Portfolio"])
+
+        summary_stats = pd.concat([summary_stats, portfolio_row])
 
     st.dataframe(
         summary_stats.style.format({
@@ -241,28 +253,6 @@ if tickers:
 
         st.plotly_chart(fig_port, width="stretch")
 
-        # Add S&P 500 for comparison (if available)
-        if "S&P 500" in returns.columns:
-            sp500_cum = (1 + returns["S&P 500"]).cumprod()
-
-            fig_port.add_trace(
-                go.Scatter(
-                    x=sp500_cum.index,
-                    y=sp500_cum,
-                    mode="lines",
-                    name="S&P 500",
-                    line=dict(dash="dash")
-                )
-            )
-
-        fig_port.update_layout(
-            xaxis_title="Date",
-            yaxis_title="Growth of $1",
-            template="plotly_white",
-            height=500
-        )
-
-        st.plotly_chart(fig_port, width="stretch")
     # -- Correlation matrix -------------------------------
     st.subheader("Correlation Matrix")
 
@@ -373,13 +363,94 @@ if tickers:
             )
 
             st.plotly_chart(fig_qq, width="stretch")
-    
+    # -- Portfolio explorer -------------------------------
+    st.subheader("Portfolio Explorer")
+
+    if portfolio_returns is None or portfolio_cum is None or portfolio_weights is None:
+        st.warning("Portfolio explorer is unavailable because no valid portfolio assets were found.")
+    else:
+        # Portfolio summary table
+        portfolio_summary = pd.DataFrame({
+            "Metric": [
+                "Number of Assets",
+                "Average Portfolio Weight",
+                "Mean Daily Return",
+                "Daily Volatility",
+                "Annual Return",
+                "Annual Volatility",
+                "Sharpe Ratio",
+                "Cumulative Return"
+            ],
+            "Value": [
+                len(asset_columns),
+                portfolio_weights.mean(),
+                portfolio_returns.mean(),
+                portfolio_returns.std(),
+                portfolio_returns.mean() * 252,
+                portfolio_returns.std() * (252 ** 0.5),
+                ((portfolio_returns.mean() * 252) - risk_free_rate) / (portfolio_returns.std() * (252 ** 0.5)),
+                portfolio_cum.iloc[-1] - 1
+            ]
+        })
+
+        st.markdown("**Portfolio Summary**")
+        st.dataframe(
+            portfolio_summary.style.format({
+                "Value": lambda x: (
+                    f"{x:.2%}" if isinstance(x, (int, float)) and abs(x) < 10 and x != len(asset_columns)
+                    else f"{x:.4f}" if isinstance(x, (int, float))
+                    else x
+                )
+            }),
+            width="stretch"
+        )
+
+        st.markdown("**Portfolio Weights**")
+        weights_df = portfolio_weights.reset_index()
+        weights_df.columns = ["Asset", "Weight"]
+        st.dataframe(
+            weights_df.style.format({"Weight": "{:.2%}"}),
+            width="stretch"
+        )
+
+        st.markdown("**Portfolio Return Series**")
+        portfolio_df = pd.DataFrame({
+            "Portfolio Return": portfolio_returns,
+            "Portfolio Growth": portfolio_cum
+        })
+
+        if "S&P 500" in returns.columns:
+            portfolio_df["S&P 500 Return"] = returns["S&P 500"]
+            portfolio_df["S&P 500 Growth"] = (1 + returns["S&P 500"]).cumprod()
+
+        st.dataframe(
+            portfolio_df.tail(60).style.format({
+                "Portfolio Return": "{:.4%}",
+                "Portfolio Growth": "{:.4f}",
+                "S&P 500 Return": "{:.4%}",
+                "S&P 500 Growth": "{:.4f}",
+            }),
+            width="stretch"
+        )
+
+        st.markdown("**Asset Return Explorer**")
+        st.dataframe(
+            asset_returns.tail(60).style.format("{:.4%}"),
+            width="stretch"
+        )
+    csv = close_prices.to_csv().encode("utf-8")
+
+    st.download_button(
+        label="Download Price Data",
+        data=csv,
+        file_name="stock_data.csv",
+        mime="text/csv",
+    )
     with st.expander("View Closing Prices"):
         st.dataframe(close_prices.tail(60), width="stretch")
 
     with st.expander("View Normalized Prices"):
         st.dataframe(normalized_prices.tail(60), width="stretch")
-
 
 else:
     st.info("Enter stock tickers in the sidebar to get started.")
