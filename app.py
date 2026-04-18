@@ -21,7 +21,12 @@ st.title("Stock Analysis Dashboard")
 # -- Sidebar: user inputs --------------------------------
 st.sidebar.header("Settings")
 
-ticker = st.sidebar.text_input("Stock Ticker", value="AAPL").upper().strip()
+tickers_input = st.sidebar.text_input(
+    "Stock Tickers (comma-separated)",
+    value="AAPL,MSFT,NVDA"
+)
+
+tickers = [t.strip().upper() for t in tickers_input.split(",") if t.strip()]
 # Risk-free rate for Sharpe ratio calculation
 risk_free_rate = st.sidebar.number_input(
     "Risk-Free Rate (%)", min_value=0.0, max_value=20.0, value=4.5, step=0.1
@@ -50,9 +55,9 @@ ma_window = st.sidebar.slider(
 # the same inputs don't re-download every time. The ttl (time-to-live)
 # ensures the cache expires after one hour so data stays fresh.
 @st.cache_data(show_spinner="Fetching data...", ttl=3600)
-def load_data(ticker: str, start: date, end: date) -> pd.DataFrame:
-    """Download daily data from Yahoo Finance for a given date range."""
-    df = yf.download(ticker, start=start, end=end, progress=False)
+def load_data(tickers: list[str], start: date, end: date) -> pd.DataFrame:
+    """Download daily data from Yahoo Finance for one or more tickers."""
+    df = yf.download(tickers, start=start, end=end, progress=False)
     return df
 
 # -- Main logic -------------------------------------------
@@ -86,6 +91,17 @@ if ticker:
             "line won't appear — try a shorter window or a wider date range."
         )
 
+    # Handle yfinance multi-stock format
+    if isinstance(df.columns, pd.MultiIndex):
+        if "Close" in df.columns.get_level_values(0):
+            close_prices = df["Close"].copy()
+        else:
+            st.error("Close price data not found.")
+            st.stop()
+    else:
+        # Single ticker still works
+        close_prices = pd.DataFrame(df["Close"])
+        close_prices.columns = tickers
 
     # -- Key metrics --------------------------------------
     latest_close = float(df["Close"].iloc[-1])
@@ -121,21 +137,31 @@ if ticker:
     st.divider()
 
     # -- Price chart --------------------------------------
-    st.subheader("Price & Moving Average")
+    st.subheader("Stock Price Comparison")
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=df.index, y=df[f"{ma_window}-Day MA"],
-            mode="lines", name=f"{ma_window}-Day MA",
-            line=dict(width=2, dash="dash")
+    fig_prices = go.Figure()
+
+    for col in close_prices.columns:
+        fig_prices.add_trace(
+            go.Scatter(
+                x=close_prices.index,
+                y=close_prices[col],
+                mode="lines",
+                name=col
+            )
         )
+
+    fig_prices.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Price (USD)",
+        template="plotly_white",
+        height=500
     )
-    fig.update_layout(
-        yaxis_title="Price (USD)", xaxis_title="Date",
-        template="plotly_white", height=450
-    )
-    st.plotly_chart(fig, width="stretch")
+
+    st.plotly_chart(fig_prices, width="stretch")
+    with st.expander("View Closing Prices"):
+        st.dataframe(close_prices.tail(60), width="stretch")
+
     # -- Volume chart -------------------------------------
     st.subheader("Daily Trading Volume")
 
