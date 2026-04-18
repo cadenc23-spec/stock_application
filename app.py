@@ -42,7 +42,19 @@ end_date = st.sidebar.date_input(
 if start_date >= end_date:
     st.sidebar.error("Start date must be before end date.")
     st.stop()
+corr_window = st.sidebar.slider(
+    "Rolling Correlation Window (days)",
+    min_value=10,
+    max_value=120,
+    value=30,
+    step=5
+)
 
+corr_pair_input = st.sidebar.text_input(
+    "Rolling Correlation Pair",
+    value="AAPL,MSFT"
+)
+corr_pair = [t.strip().upper() for t in corr_pair_input.split(",") if t.strip()]
 
 # -- Data download ----------------------------------------
 @st.cache_data(show_spinner="Fetching data...", ttl=3600)
@@ -239,6 +251,42 @@ if tickers:
 
     with st.expander("View Normalized Prices"):
         st.dataframe(normalized_prices.tail(60), width="stretch")
+    # -- Rolling correlation ------------------------------
+    st.subheader("Rolling Correlation")
+
+    asset_returns = returns.drop(columns=["S&P 500"], errors="ignore")
+
+    if len(corr_pair) != 2:
+        st.warning("Enter exactly two tickers for rolling correlation, like AAPL,MSFT.")
+    elif corr_pair[0] not in asset_returns.columns or corr_pair[1] not in asset_returns.columns:
+        st.warning("One or both rolling-correlation tickers are not in your selected stock list.")
+    else:
+        rolling_corr = (
+            asset_returns[corr_pair[0]]
+            .rolling(window=corr_window)
+            .corr(asset_returns[corr_pair[1]])
+        )
+
+        fig_roll_corr = go.Figure()
+
+        fig_roll_corr.add_trace(
+            go.Scatter(
+                x=rolling_corr.index,
+                y=rolling_corr,
+                mode="lines",
+                name=f"{corr_pair[0]} vs {corr_pair[1]}",
+                line=dict(width=2)
+            )
+        )
+
+        fig_roll_corr.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Rolling Correlation",
+            template="plotly_white",
+            height=450
+        )
+
+        st.plotly_chart(fig_roll_corr, width="stretch")
 
 else:
     st.info("Enter stock tickers in the sidebar to get started.")
