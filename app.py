@@ -201,6 +201,27 @@ if tickers:
         )
         portfolio_returns = asset_returns[asset_columns].mean(axis=1)
         portfolio_cum = (1 + portfolio_returns).cumprod()
+
+    # Two-asset portfolio objects
+    two_asset_portfolio_returns = None
+    two_asset_portfolio_cum = None
+    two_asset_volatility = None
+    pair1 = None
+    pair2 = None
+    w1 = asset1_weight
+    w2 = 1 - w1
+
+    if len(two_asset_pair) == 2:
+        pair1, pair2 = two_asset_pair[0], two_asset_pair[1]
+
+        if pair1 in asset_returns.columns and pair2 in asset_returns.columns:
+            two_asset_portfolio_returns = (
+                w1 * asset_returns[pair1] + w2 * asset_returns[pair2]
+            )
+            two_asset_portfolio_cum = (1 + two_asset_portfolio_returns).cumprod()
+            two_asset_volatility = (
+                two_asset_portfolio_returns.rolling(window=vol_window).std() * (252 ** 0.5)
+            )
     
     # -- Summary statistics ----------------------------------
     st.subheader("Summary Statistics")
