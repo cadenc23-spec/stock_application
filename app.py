@@ -165,6 +165,55 @@ if tickers:
         }),
         width="stretch"
     )
+    # -- Equal-weight portfolio ---------------------------
+    st.subheader("Equal-Weight Portfolio Performance")
+
+    # Remove benchmark from portfolio
+    asset_columns = [col for col in close_prices.columns if col != "S&P 500"]
+
+    if len(asset_columns) < 1:
+        st.warning("No valid assets for portfolio calculation.")
+    else:
+        # Portfolio returns (equal weight)
+        portfolio_returns = returns[asset_columns].mean(axis=1)
+
+        # Cumulative return
+        portfolio_cum = (1 + portfolio_returns).cumprod()
+
+        fig_port = go.Figure()
+
+        fig_port.add_trace(
+            go.Scatter(
+                x=portfolio_cum.index,
+                y=portfolio_cum,
+                mode="lines",
+                name="Equal-Weight Portfolio",
+                line=dict(color="black", width=3)
+            )
+        )
+
+        # Add S&P 500 for comparison (if available)
+        if "S&P 500" in returns.columns:
+            sp500_cum = (1 + returns["S&P 500"]).cumprod()
+
+            fig_port.add_trace(
+                go.Scatter(
+                    x=sp500_cum.index,
+                    y=sp500_cum,
+                    mode="lines",
+                    name="S&P 500",
+                    line=dict(dash="dash")
+                )
+            )
+
+        fig_port.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Growth of $1",
+            template="plotly_white",
+            height=500
+        )
+
+        st.plotly_chart(fig_port, width="stretch")
 
     with st.expander("View Closing Prices"):
         st.dataframe(close_prices.tail(60), width="stretch")
