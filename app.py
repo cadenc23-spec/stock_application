@@ -216,6 +216,28 @@ if tickers:
         }),
         width="stretch"
     )
+
+        # -- Best / Worst performer ---------------------------
+    st.subheader("Top Performers")
+
+    cumulative_returns = (close_prices.iloc[-1] / close_prices.iloc[0]) - 1
+
+    best_stock = cumulative_returns.idxmax()
+    worst_stock = cumulative_returns.idxmin()
+
+    col1, col2 = st.columns(2)
+
+    col1.metric(
+        "Best Performer",
+        best_stock,
+        f"{cumulative_returns[best_stock]:.2%}"
+    )
+
+    col2.metric(
+        "Worst Performer",
+        worst_stock,
+        f"{cumulative_returns[worst_stock]:.2%}"
+    )
     # -- Equal-weight portfolio ---------------------------
     st.subheader("Equal-Weight Portfolio Performance")
 
