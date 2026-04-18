@@ -9,6 +9,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import date, timedelta
+import plotly.express as px
 
 
 # -- Page configuration ----------------------------------
@@ -214,6 +215,24 @@ if tickers:
         )
 
         st.plotly_chart(fig_port, width="stretch")
+    # -- Correlation matrix -------------------------------
+    st.subheader("Correlation Matrix")
+
+    asset_returns = returns.drop(columns=["S&P 500"], errors="ignore")
+    corr_matrix = asset_returns.corr()
+
+    fig_corr = px.imshow(
+        corr_matrix,
+        text_auto=".2f",
+        aspect="auto",
+        color_continuous_scale="RdBu_r",
+        zmin=-1,
+        zmax=1,
+        title="Stock Return Correlation"
+    )
+
+    fig_corr.update_layout(height=500)
+    st.plotly_chart(fig_corr, width="stretch")
 
     with st.expander("View Closing Prices"):
         st.dataframe(close_prices.tail(60), width="stretch")
