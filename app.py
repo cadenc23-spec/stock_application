@@ -373,48 +373,65 @@ if tickers:
 
         st.plotly_chart(fig_two_asset, width="stretch")
 
-        st.subheader("Two-Asset Portfolio Rolling Volatility")
+        # -- Max Drawdown -------------------------------------
+        running_max = portfolio_cum.cummax()
+        drawdown = (portfolio_cum - running_max) / running_max
+        max_drawdown = drawdown.min()
 
-        fig_two_vol = go.Figure()
+        st.metric("Portfolio Max Drawdown", f"{max_drawdown:.2%}")
 
-        fig_two_vol.add_trace(
+    # -- Rolling Volatility -------------------------------
+    st.subheader("Rolling Volatility")
+
+    if portfolio_returns is None:
+        st.warning("Portfolio returns unavailable for rolling volatility.")
+    else:
+        rolling_vol = portfolio_returns.rolling(window=vol_window).std() * (252 ** 0.5)
+
+        fig_roll_vol = go.Figure()
+
+        fig_roll_vol.add_trace(
             go.Scatter(
-                x=two_asset_volatility.index,
-                y=two_asset_volatility,
+                x=rolling_vol.index,
+                y=rolling_vol,
                 mode="lines",
-                name="Portfolio Rolling Volatility",
+                name="Equal-Weight Portfolio Rolling Volatility",
                 line=dict(width=2)
             )
         )
 
-        fig_two_vol.update_layout(
+        fig_roll_vol.update_layout(
             xaxis_title="Date",
             yaxis_title="Annualized Volatility",
             template="plotly_white",
             height=400
         )
 
-        st.plotly_chart(fig_two_vol, width="stretch")
+        st.plotly_chart(fig_roll_vol, width="stretch")
 
-        st.subheader("Two-Asset Portfolio Return Distribution")
+    # -- Return Distribution ------------------------------
+    st.subheader("Return Distribution")
 
+    if portfolio_returns is None:
+        st.warning("Portfolio returns unavailable for histogram and Jarque-Bera test.")
+    else:
         fig_hist = go.Figure()
 
         fig_hist.add_trace(
             go.Histogram(
-                x=two_asset_portfolio_returns.dropna(),
+                x=portfolio_returns.dropna(),
                 nbinsx=50,
                 name="Portfolio Returns",
                 histnorm="probability density"
             )
         )
 
-        mu = two_asset_portfolio_returns.mean()
-        sigma = two_asset_portfolio_returns.std()
+        mu = portfolio_returns.mean()
+        sigma = portfolio_returns.std()
 
         x_range = np.linspace(
-            two_asset_portfolio_returns.min(),
-            two_asset_portfolio_returns.max(),
+            portfolio_returns.min(),
+            portfolio_returns.max(),
             200
         )
 
@@ -436,20 +453,12 @@ if tickers:
 
         st.plotly_chart(fig_hist, width="stretch")
 
-        jb_stat, jb_pvalue = stats.jarque_bera(two_asset_portfolio_returns.dropna())
+        jb_stat, jb_pvalue = stats.jarque_bera(portfolio_returns.dropna())
 
         st.caption(
             f"Jarque-Bera test: statistic = {jb_stat:.2f}, p-value = {jb_pvalue:.4f}"
         )
 
-
-        # -- Max Drawdown -------------------------------------
-        running_max = portfolio_cum.cummax()
-        drawdown = (portfolio_cum - running_max) / running_max
-        max_drawdown = drawdown.min()
-
-        st.metric("Portfolio Max Drawdown", f"{max_drawdown:.2%}")
-        
     # -- Correlation matrix -------------------------------
     st.subheader("Correlation Matrix")
 
