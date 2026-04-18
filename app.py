@@ -278,6 +278,13 @@ if tickers:
 
         st.plotly_chart(fig_port, width="stretch")
 
+        # -- Max Drawdown -------------------------------------
+        running_max = portfolio_cum.cummax()
+        drawdown = (portfolio_cum - running_max) / running_max
+        max_drawdown = drawdown.min()
+
+        st.metric("Portfolio Max Drawdown", f"{max_drawdown:.2%}")
+        
     # -- Correlation matrix -------------------------------
     st.subheader("Correlation Matrix")
 
