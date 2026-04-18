@@ -16,7 +16,10 @@ from scipy import stats
 # -- Page configuration ----------------------------------
 st.set_page_config(page_title="Stock Analyzer", layout="wide")
 st.title("Stock Analysis Dashboard")
-
+st.markdown("""
+Analyze and compare multiple stocks against the S&P 500 benchmark.  
+This dashboard provides insights into performance, risk, correlations, and portfolio behavior using an equal-weight strategy.
+""")
 
 # -- Sidebar: user inputs --------------------------------
 st.sidebar.header("Settings")
