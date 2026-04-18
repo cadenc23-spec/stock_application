@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 from datetime import date, timedelta
 import plotly.express as px
 from scipy import stats
+import numpy as np
 
 
 # -- Page configuration ----------------------------------
@@ -394,6 +395,53 @@ if tickers:
         )
 
         st.plotly_chart(fig_two_vol, width="stretch")
+
+        st.subheader("Two-Asset Portfolio Return Distribution")
+
+        fig_hist = go.Figure()
+
+        fig_hist.add_trace(
+            go.Histogram(
+                x=two_asset_portfolio_returns.dropna(),
+                nbinsx=50,
+                name="Portfolio Returns",
+                histnorm="probability density"
+            )
+        )
+
+        mu = two_asset_portfolio_returns.mean()
+        sigma = two_asset_portfolio_returns.std()
+
+        x_range = np.linspace(
+            two_asset_portfolio_returns.min(),
+            two_asset_portfolio_returns.max(),
+            200
+        )
+
+        fig_hist.add_trace(
+            go.Scatter(
+                x=x_range,
+                y=stats.norm.pdf(x_range, mu, sigma),
+                mode="lines",
+                name="Normal Curve"
+            )
+        )
+
+        fig_hist.update_layout(
+            xaxis_title="Return",
+            yaxis_title="Density",
+            template="plotly_white",
+            height=400
+        )
+
+        st.plotly_chart(fig_hist, width="stretch")
+
+        jb_stat, jb_pvalue = stats.jarque_bera(two_asset_portfolio_returns.dropna())
+
+        st.caption(
+            f"Jarque-Bera test: statistic = {jb_stat:.2f}, p-value = {jb_pvalue:.4f}"
+        )
+
 
         # -- Max Drawdown -------------------------------------
         running_max = portfolio_cum.cummax()
