@@ -57,22 +57,21 @@ ma_window = st.sidebar.slider(
 # ensures the cache expires after one hour so data stays fresh.
 @st.cache_data(show_spinner="Fetching data...", ttl=3600)
 def load_data(tickers: list[str], start: date, end: date) -> pd.DataFrame:
-    """Download daily data from Yahoo Finance for one or more tickers."""
     df = yf.download(tickers, start=start, end=end, progress=False)
     return df
 
 # -- Main logic -------------------------------------------
 if tickers:
     try:
-        df = load_data(ticker, start_date, end_date)
+        df = load_data(tickers, start_date, end_date)
     except Exception as e:
         st.error(f"Failed to download data: {e}")
         st.stop()
 
     if df.empty:
         st.error(
-            f"No data found for **{ticker}**. "
-            "Check the ticker symbol and try again."
+            f"No data found for **{tickers}**. "
+            "Check the tickers symbol and try again."
         )
         st.stop()
 
@@ -117,7 +116,7 @@ if tickers:
     max_close = float(df["Close"].max())
     min_close = float(df["Close"].min())
 
-    st.subheader(f"{ticker} — Key Metrics")
+    st.subheader(f"{tickers} — Key Metrics")
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Latest Close", f"${latest_close:,.2f}")
@@ -252,4 +251,4 @@ if tickers:
         st.dataframe(df.tail(60), width="stretch")
 
 else:
-    st.info("Enter a stock ticker in the sidebar to get started.")
+    st.info("Enter stock tickers in the sidebar to get started.")
