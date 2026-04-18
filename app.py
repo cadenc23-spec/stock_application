@@ -69,6 +69,28 @@ qq_choice = st.sidebar.text_input(
     value="PORTFOLIO"
 ).upper().strip()
 
+vol_window = st.sidebar.slider(
+    "Rolling Volatility Window (days)",
+    min_value=10,
+    max_value=120,
+    value=30,
+    step=5
+)
+
+two_asset_input = st.sidebar.text_input(
+    "Two-Asset Explorer Pair",
+    value="AAPL,MSFT"
+)
+two_asset_pair = [t.strip().upper() for t in two_asset_input.split(",") if t.strip()]
+
+asset1_weight = st.sidebar.slider(
+    "Weight in First Asset (%)",
+    min_value=0,
+    max_value=100,
+    value=50,
+    step=5
+) / 100
+
 # -- Data download ----------------------------------------
 @st.cache_data(show_spinner="Fetching data...", ttl=3600)
 def load_data(all_tickers: list[str], start: date, end: date) -> pd.DataFrame:
