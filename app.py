@@ -1,6 +1,6 @@
 # app.py
 # -------------------------------------------------------
-# Step 1: Multi-stock Streamlit dashboard
+# A simple Streamlit stock analysis dashboard.
 # Run with: uv run streamlit run app.py
 # -------------------------------------------------------
 
@@ -45,15 +45,18 @@ if start_date >= end_date:
 
 # -- Data download ----------------------------------------
 @st.cache_data(show_spinner="Fetching data...", ttl=3600)
-def load_data(tickers: list[str], start: date, end: date) -> pd.DataFrame:
+def load_data(all_tickers: list[str], start: date, end: date) -> pd.DataFrame:
     """Download daily stock data from Yahoo Finance."""
-    return yf.download(tickers, start=start, end=end, progress=False)
+    return yf.download(all_tickers, start=start, end=end, progress=False)
 
 
 # -- Main logic -------------------------------------------
 if tickers:
+    benchmark = "^GSPC"
+    all_tickers = tickers + [benchmark]
+
     try:
-        df = load_data(tickers, start_date, end_date)
+        df = load_data(all_tickers, start_date, end_date)
     except Exception as e:
         st.error(f"Failed to download data: {e}")
         st.stop()
@@ -70,26 +73,30 @@ if tickers:
         close_prices = df["Close"].copy()
     else:
         close_prices = pd.DataFrame(df["Close"])
-        close_prices.columns = [tickers[0]]
+        close_prices.columns = [all_tickers[0]]
 
-    # Remove invalid all-empty columns
+    # Remove all-empty columns
     close_prices = close_prices.dropna(axis=1, how="all")
 
     if close_prices.empty:
         st.error("No valid closing price data was returned.")
         st.stop()
 
-    st.subheader("Stock Price Comparison")
+    # Rename benchmark for cleaner display
+    if "^GSPC" in close_prices.columns:
+        close_prices = close_prices.rename(columns={"^GSPC": "S&P 500"})
+
+    st.subheader("Stock Price Comparison with S&P 500 Benchmark")
 
     fig_prices = go.Figure()
 
-    for ticker in close_prices.columns:
+    for col in close_prices.columns:
         fig_prices.add_trace(
             go.Scatter(
                 x=close_prices.index,
-                y=close_prices[ticker],
+                y=close_prices[col],
                 mode="lines",
-                name=ticker
+                name=col
             )
         )
 
@@ -102,8 +109,37 @@ if tickers:
 
     st.plotly_chart(fig_prices, width="stretch")
 
+    # Normalized comparison chart
+    st.subheader("Normalized Performance Comparison")
+
+    normalized_prices = close_prices / close_prices.iloc[0] * 100
+
+    fig_norm = go.Figure()
+
+    for col in normalized_prices.columns:
+        fig_norm.add_trace(
+            go.Scatter(
+                x=normalized_prices.index,
+                y=normalized_prices[col],
+                mode="lines",
+                name=col
+            )
+        )
+
+    fig_norm.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Indexed Value (Start = 100)",
+        template="plotly_white",
+        height=500
+    )
+
+    st.plotly_chart(fig_norm, width="stretch")
+
     with st.expander("View Closing Prices"):
         st.dataframe(close_prices.tail(60), width="stretch")
+
+    with st.expander("View Normalized Prices"):
+        st.dataframe(normalized_prices.tail(60), width="stretch")
 
 else:
     st.info("Enter stock tickers in the sidebar to get started.")
