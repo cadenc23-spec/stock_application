@@ -27,6 +27,7 @@ tickers_input = st.sidebar.text_input(
 )
 
 tickers = [t.strip().upper() for t in tickers_input.split(",") if t.strip()]
+
 # Risk-free rate for Sharpe ratio calculation
 risk_free_rate = st.sidebar.number_input(
     "Risk-Free Rate (%)", min_value=0.0, max_value=20.0, value=4.5, step=0.1
@@ -61,7 +62,7 @@ def load_data(tickers: list[str], start: date, end: date) -> pd.DataFrame:
     return df
 
 # -- Main logic -------------------------------------------
-if ticker:
+if tickers:
     try:
         df = load_data(ticker, start_date, end_date)
     except Exception as e:
