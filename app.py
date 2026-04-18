@@ -134,6 +134,39 @@ if tickers:
     )
 
     st.plotly_chart(fig_norm, width="stretch")
+    # -- Compute returns -------------------------------------
+returns = close_prices.pct_change().dropna()
+
+# -- Summary statistics ----------------------------------
+st.subheader("Summary Statistics")
+
+summary_stats = pd.DataFrame({
+    "Mean Daily Return": returns.mean(),
+    "Volatility (Daily)": returns.std(),
+})
+
+summary_stats["Annual Return"] = summary_stats["Mean Daily Return"] * 252
+summary_stats["Annual Volatility"] = summary_stats["Volatility (Daily)"] * (252 ** 0.5)
+
+# Use a fixed risk-free rate (you can make this user input later)
+risk_free_rate = 0.045
+
+summary_stats["Sharpe Ratio"] = (
+    (summary_stats["Annual Return"] - risk_free_rate)
+    / summary_stats["Annual Volatility"]
+)
+
+# Format for display
+st.dataframe(
+    summary_stats.style.format({
+        "Mean Daily Return": "{:.4%}",
+        "Volatility (Daily)": "{:.4%}",
+        "Annual Return": "{:.2%}",
+        "Annual Volatility": "{:.2%}",
+        "Sharpe Ratio": "{:.2f}",
+    }),
+    width="stretch"
+)
 
     with st.expander("View Closing Prices"):
         st.dataframe(close_prices.tail(60), width="stretch")
